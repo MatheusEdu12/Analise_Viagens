@@ -1,0 +1,177 @@
+---
+title: "Relatório Análise de Dados de Viagens"
+output: pdf_document
+date: "2023-12-07"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Instalando as bibliotecas
+
+```{r}
+install.packages('dplyr')
+install.packages('ggplot2')
+library(dplyr)
+library(ggplot2)
+```
+
+## Importando os dados
+
+```{r}
+dados <- read.csv(
+  file = "C:/Users/Matheus/Desktop/MATHEUS/DATA/2019_Viagem.csv",
+  sep = ';',
+  dec = ',',
+  fileEncoding = "latin1"
+)
+dim(dados)
+```
+O dataframe possui 756.704 linhas e 16 colunas.
+
+## Visualização dos dados
+
+```{r}
+head(dados,10)
+```
+Aqui podemos ver o estado das 10 primeiras linhas de dados, e se precisam ser limpos e transformados.
+
+## Verificação do tipo dos dados
+
+```{r}
+glimpse(dados)
+```
+## Transformação dos dados
+
+Converteremos os dados da coluna Data de Inicio para o tipo Date, faremos isso utilizando o comando as.Date e os colocaremos em uma nova coluna chamada "data.inicio".
+
+```{r}
+dados$data.inicio <- as.Date(dados$Período...Data.de.início, "%d/%m/%Y")
+
+# Formatando a data de inicio - para utilizar apenas Ano/Mês
+
+dados$data.inicio.formatada <- format(dados$data.inicio, "%Y-%m")
+
+# Checando os tipos de dados novamente
+glimpse(dados)
+```
+
+## Exploração dos dados
+
+```{r}
+#Verificar se existem valores não preenchidos nas colunas do dados
+
+colSums(is.na(dados))
+```
+
+```{r}
+# Verificando os valores min, max, e média da coluna sobre valores de passagens
+
+summary(dados$Valor.passagens)
+```
+Após executar a função summary(), é possivel ver que o valor máximo está muito distante da média, o que indica a presença de outliers. São os valores que fogem da normalidade dos dados, fazendo com que o resultado da análise não mostre a realidade.
+
+```{r}
+# Calculando o desvio padrão
+
+sd(dados$Valor.passagens)
+```
+Continuando a exploração, podemos verificar a quantidade de registros da coluna Situação em cada uma de suas categorias (Realizada, Não realizada). Também podemos obter o percentual das ocorrencias.
+
+```{r}
+# Verificar quantidade de registros em cada categoria
+
+table(dados$Situação)
+```
+```{r}
+# Obtendo os valores em percentual de cada categoria
+
+resultados <- prop.table(table(dados$Situação))*100
+resultados_formatados <- sprintf("%.2f%%", resultados)
+print(resultados_formatados)
+```
+## Visualização dos resultados
+
+A visualização dos resultados é a etapa final do projeto acerca da análise dos dados de viagens a serviço. Assim, é o momento de responder às questões: 
+
+1 - Qual é o valor gasto por órgão?
+2 - Qual é o valor gasto por cidade?
+3 - Qual é a quantidade de viagens por mês?
+
+```{r}
+# 1 - Qual é o valor gasto por órgão em passagens?
+
+# Criando um dataframe com os 15 órgãos que gastam mais
+
+p1 <- dados %>%
+  group_by(Nome.do.órgão.superior) %>%
+  summarise(n = sum(Valor.passagens)) %>%
+  arrange(desc(n)) %>%
+  top_n(15)
+
+# Alterando o nome das colunas
+names(p1) <- c("orgao", "valor")
+
+p1
+```
+Aqui, podemos ver quais são os 15 orgãos que tiveram mais gastos com passagens, e o valor gasto por cada um.
+
+```{r}
+# Plotando os dados com o ggplot
+
+ggplot(p1, aes(x = reorder(orgao, valor), y = valor)) +
+  geom_bar(stat = "identity", fill = "#0ba791") +  
+  coord_flip() +
+  scale_y_continuous(labels = scales::dollar_format(prefix = "R$")) +  
+  labs(x = "Órgãos", y = "Valor em R$") +
+  theme_minimal()
+
+```
+```{r}
+# 2 - Qual é o valor gasto por cidade?
+
+#Criando um dataframe com as 15 cidades que gastam mais
+p2 <- dados %>%
+  group_by(Destinos) %>%
+  summarise(n = sum(Valor.passagens)) %>%
+  arrange(desc(n)) %>%
+  top_n(15)
+
+#Alterando o nome das colunas
+names(p2) <- c("destino", "valor")
+
+p2
+```
+
+Aqui podemos ver quais foram as 15 cidades que mais gastaram, e o valor gasto por cada uma.
+
+```{r}
+#Criando o gráfico
+ggplot(p2, aes(x = reorder(destino, valor), y = valor))+
+  geom_bar(stat = "identity", fill = "#FFF78A")+
+  coord_flip()+
+  scale_y_continuous(labels = scales::dollar_format(prefix = "R$")) +
+  labs(x = "Destino", y = "Valor em R$")+
+  theme_minimal()
+```
+```{r}
+# 3 - Qual é a quantidade de viagens por mês?
+
+#Criando um dataframe com a quantidade de viagens por Ano/mês
+p3 <- dados %>%
+  group_by(data.inicio.formatada) %>%
+  summarise(qtd = n_distinct(Identificador.do.processo.de.viagem))
+
+head(p3,12)
+```
+Aqui podemos ver a quantidade total de viagens realizadas por mês.
+
+```{r}
+#Criando o gráfico
+ggplot(p3, aes(x = data.inicio.formatada, y = qtd, group = 1)) +
+  geom_line() +
+  geom_point() +
+  labs(x = "Data", y = "Quantidade")
+
+```
